@@ -85,7 +85,7 @@ Excludes API key
 
 ```
 cssg-CollegeConnect/
-├── client/                  # React application
+├── my-react-app            # React app
 │   ├── src/
 │   │   ├── components/     # Reusable components
 │   │   │   ├── Header.jsx  # Navigation header
