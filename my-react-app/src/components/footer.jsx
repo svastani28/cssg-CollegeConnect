@@ -7,7 +7,7 @@ function Footer() {
         <div className="footer-content">
           <div className="footer-section">
             <h3>CollegeConnect</h3>
-            <p>Supporting high-school students through the college application process.</p>
+            <p>Dedicated to supporting high-school students through the college application process.</p>
           </div>
           <div className="footer-section">
             <h4>Quick Links</h4>
@@ -20,7 +20,7 @@ function Footer() {
           <div className="footer-section">
             <h4>Contact</h4>
             <p>Email: support@collegeconnect.org</p>
-            <p>Empowering first-generation and under-resourced students</p>
+            <p>Phone: (123) 456-7890</p>
           </div>
         </div>
         <div className="footer-bottom">

@@ -2,6 +2,7 @@ import './Mentorship.css';
 
 function Mentorship() {
   const mentors = [
+    // Sample mentor data
     {
       name: "Sarah Johnson",
       role: "College Counselor",
@@ -28,6 +29,7 @@ function Mentorship() {
     }
   ];
 
+  // HTML structure for the Mentorship page
   return (
     <div className="mentorship">
       <div className="container">

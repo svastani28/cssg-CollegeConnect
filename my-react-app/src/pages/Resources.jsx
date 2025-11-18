@@ -1,6 +1,7 @@
 import './Resources.css';
 
 function Resources() {
+  // Sample resource data
   const resources = [
     {
       category: "Application Process",

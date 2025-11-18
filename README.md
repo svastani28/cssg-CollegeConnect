@@ -81,6 +81,7 @@ npm run lint
 ```
 
 ## Project Structure
+Excludes API key
 
 ```
 cssg-CollegeConnect/
@@ -96,8 +97,10 @@ cssg-CollegeConnect/
 │   │   │   ├── Mentorship.jsx  # Mentorship program
 │   │   │   └── Colleges.jsx    # College search
 │   │   ├── App.jsx         # Main app component with routing
+│   │   ├── CollegeContext.jsx  # Take User Data
 │   │   └── main.jsx        # Entry point
 │   ├── public/             # Static assets
+│   ├── package-lock.json   # Dependencies
 │   └── package.json        # Dependencies
 └── README.md              # This file
 ```
@@ -109,8 +112,4 @@ CollegeConnect is committed to increasing access to guidance and support for stu
 ## Contributing
 
 This is a student project. Contributions and feedback are welcome!
-
-## License
-
-© 2024 CollegeConnect. All rights reserved.
 

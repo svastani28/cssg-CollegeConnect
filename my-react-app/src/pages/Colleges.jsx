@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import './Colleges.css';
+import { useCollegeContext } from '../CollegeContext';
 
 const API_KEY = import.meta.env.VITE_COLLEGE_SCORECARD_KEY;
 const BASE_URL = 'https://api.data.gov/ed/collegescorecard/v1/schools';
 
 // Exact school names used by the College Scorecard API
-const TARGET_SCHOOLS = [
+const SCHOOLS = [
   {
     displayName: 'UNC Chapel Hill',
     apiName: 'University of North Carolina at Chapel Hill',
@@ -32,12 +33,42 @@ const TARGET_SCHOOLS = [
   },
 ];
 
+// classify Safety/Target/Reach using user SAT/ACT (used for pills + dashboard)
+function classifyCollegeByScores(college, scores) {
+  const userSAT = scores.sat ? Number(scores.sat) : null;
+  const userACT = scores.act ? Number(scores.act) : null;
+  const collegeSAT = college.satComposite ?? null;
+  const collegeACT = college.actComposite ?? null;
+
+  // Prefer SAT if both available
+  if (userSAT && collegeSAT) {
+    const diff = userSAT - collegeSAT;
+    if (diff >= 100) return 'Safety';
+    if (diff <= -100) return 'Reach';
+    return 'Target';
+  }
+
+  if (userACT && collegeACT) {
+    const diff = userACT - collegeACT;
+    if (diff >= 2) return 'Safety';
+    if (diff <= -2) return 'Reach';
+    return 'Target';
+  }
+
+  return 'Unclassified';
+}
+
 function Colleges() {
   const [searchTerm, setSearchTerm] = useState('');
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Context
+  const { saveCollege, savedColleges, testScores } = useCollegeContext();
+
+  // Helper functions to format data
+  // Public vs Private ownership
   const ownershipLabel = (ownership) => {
     if (ownership === 1) return 'Public';
     if (ownership === 2) return 'Private (Non-profit)';
@@ -45,6 +76,7 @@ function Colleges() {
     return 'Unknown';
   };
 
+  // Popularion Size formatting
   const formatSize = (size) => {
     if (!size) return 'N/A';
     if (size >= 30000) return 'Large (30,000+)';
@@ -53,24 +85,28 @@ function Colleges() {
     return 'Very Small (<5,000)';
   };
 
+  // Percentage formatting
   const formatPercent = (value) => {
     if (value == null) return 'N/A';
     return `${Math.round(value * 100)}%`;
   };
 
+  // Money formatting
   const formatMoney = (value) => {
     if (value == null) return 'N/A';
     return `$${value.toLocaleString()}`;
   };
 
+  // Fetch data on mount
   useEffect(() => {
     const fetchSelectedColleges = async () => {
       try {
         setLoading(true);
         setError('');
 
+        // Fetch data for each school in SCHOOLS
         const results = await Promise.all(
-          TARGET_SCHOOLS.map(async (school) => {
+          SCHOOLS.map(async (school) => {
             const params = new URLSearchParams({
               api_key: API_KEY,
               'school.name': school.apiName,
@@ -84,11 +120,15 @@ function Colleges() {
                 'latest.student.size',
                 'latest.admissions.admission_rate.overall',
                 'latest.aid.average_grant',
+                'latest.admissions.sat_scores.midpoint.critical_reading',
+                'latest.admissions.sat_scores.midpoint.math',
+                'latest.admissions.act_scores.midpoint.cumulative',
               ].join(','),
             });
 
             const res = await fetch(`${BASE_URL}?${params.toString()}`);
 
+            // Error Handling
             if (!res.ok) {
               console.error('Error fetching', school.apiName);
               return null;
@@ -102,9 +142,22 @@ function Colleges() {
 
             const c = data.results[0];
 
+            // Calculate SAT Composite if both sections available
+            const satReading =
+              c['latest.admissions.sat_scores.midpoint.critical_reading'];
+            const satMath =
+              c['latest.admissions.sat_scores.midpoint.math'];
+            const satComposite =
+              satReading != null && satMath != null
+                ? satReading + satMath
+                : null;
+
+            const actComposite =
+              c['latest.admissions.act_scores.midpoint.cumulative'] ?? null;
+
+            // Return formatted college data
             return {
               id: c.id,
-              // keep the official name the API returns
               name: c['school.name'],
               location: `${c['school.city']}, ${c['school.state']}`,
               type: ownershipLabel(c['school.ownership']),
@@ -112,7 +165,11 @@ function Colleges() {
               acceptanceRate: formatPercent(
                 c['latest.admissions.admission_rate.overall']
               ),
-              avgFinancialAid: formatMoney(c['latest.aid.average_grant']),
+              avgFinancialAid: formatMoney(
+                c['latest.aid.average_grant']
+              ),
+              satComposite,  
+              actComposite,  
             };
           })
         );
@@ -120,6 +177,8 @@ function Colleges() {
         setColleges(results.filter(Boolean));
       } catch (err) {
         console.error(err);
+        
+        // Error Catching
         setError('There was a problem loading college data.');
       } finally {
         setLoading(false);
@@ -129,12 +188,20 @@ function Colleges() {
     fetchSelectedColleges();
   }, []);
 
+  // Filter colleges based on search term
   const filteredColleges = colleges.filter((college) =>
     (college.name + college.location)
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
 
+  // Check if college is already saved
+  const isSaved = (college) =>
+    savedColleges.some(
+      (c) => c.id === college.id || c.name === college.name
+    );
+
+  // HTML Structure and Setup
   return (
     <div className="colleges">
       <div className="container">
@@ -147,6 +214,7 @@ function Colleges() {
           </p>
         </div>
 
+        {/* Search and Filters */}
         <div className="search-section">
           <div className="search-box">
             <input
@@ -180,41 +248,81 @@ function Colleges() {
 
         {!loading && !error && (
           <>
+            {/* Colleges Grid */}
             <div className="colleges-grid">
-              {filteredColleges.map((college) => (
-                <div key={college.id} className="college-card">
-                  <div className="college-header">
-                    <h3>{college.name}</h3>
-                    <span className="college-type">{college.type}</span>
+              {filteredColleges.map((college) => {
+                const category = classifyCollegeByScores(
+                  college,
+                  testScores
+                );
+
+                return (
+                  <div key={college.id} className="college-card">
+                    <div className="college-header">
+                      <h3>{college.name}</h3>
+                      <div className="header-right">
+                        <span className="college-type">{college.type}</span>
+                        <span
+                          className={`fit-pill fit-${category.toLowerCase()}`}
+                        >
+                          {/* Category set up for college boxes */}
+                          {category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="college-info">
+                      <div className="info-row">
+                        <span className="info-label">📍 Location:</span>
+                        <span className="info-value">
+                          {college.location}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">👥 Size:</span>
+                        <span className="info-value">{college.size}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">
+                          📊 Acceptance Rate:
+                        </span>
+                        <span className="info-value">
+                          {college.acceptanceRate}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">
+                          💰 Avg Financial Aid:
+                        </span>
+                        <span className="info-value">
+                          {college.avgFinancialAid}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">📝 SAT Midpoint:</span>
+                        <span className="info-value">
+                          {college.satComposite ?? 'N/A'}
+                        </span>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-label">📝 ACT Midpoint:</span>
+                        <span className="info-value">
+                          {college.actComposite ?? 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="college-actions">
+                      <button className="btn-learn-more">Learn More</button>
+                      <button
+                        className="btn-save"
+                        onClick={() => saveCollege(college)} // ✅ actually saves
+                        disabled={isSaved(college)}
+                      >
+                        {isSaved(college) ? 'Saved ✓' : 'Save'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="college-info">
-                    <div className="info-row">
-                      <span className="info-label">📍 Location:</span>
-                      <span className="info-value">{college.location}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">👥 Size:</span>
-                      <span className="info-value">{college.size}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">📊 Acceptance Rate:</span>
-                      <span className="info-value">
-                        {college.acceptanceRate}
-                      </span>
-                    </div>
-                    <div className="info-row">
-                      <span className="info-label">💰 Avg Financial Aid:</span>
-                      <span className="info-value">
-                        {college.avgFinancialAid}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="college-actions">
-                    <button className="btn-learn-more">Learn More</button>
-                    <button className="btn-save">Save</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {filteredColleges.length === 0 && (

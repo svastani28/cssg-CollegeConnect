@@ -273,3 +273,33 @@
     grid-template-columns: 1fr;
   }
 }
+
+.header-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.fit-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.fit-safety {
+  background: #c6f6d5;
+  color: #22543d;
+}
+.fit-target {
+  background: #bee3f8;
+  color: #2b6cb0;
+}
+.fit-reach {
+  background: #fed7e2;
+  color: #97266d;
+}
+.fit-unclassified {
+  background: #e2e8f0;
+  color: #4a5568;
+}
